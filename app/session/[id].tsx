@@ -243,17 +243,24 @@ export default function SessionDetail() {
   const deleteLastRound = async () => {
     if (isLocked) return;
     if (session.rounds.length === 0) return;
+    const removeLastRound = async () => {
+      await persist({
+        ...session,
+        rounds: session.rounds.slice(0, -1),
+      });
+    };
+    if (typeof window !== "undefined") {
+      if (window.confirm("确定撤销最后一轮？")) {
+        await removeLastRound();
+      }
+      return;
+    }
     Alert.alert("撤销轮次", "确定撤销最后一轮？", [
       { text: "取消", style: "cancel" },
       {
         text: "撤销",
         style: "destructive",
-        onPress: async () => {
-          await persist({
-            ...session,
-            rounds: session.rounds.slice(0, -1),
-          });
-        },
+        onPress: removeLastRound,
       },
     ]);
   };
