@@ -48,15 +48,51 @@ export default function SessionDetail() {
   }, [id, router]);
 
   const persist = async (updated: GameSession) => {
-    setSession(updated);
-    await saveSession(updated);
+    if (session?.locked) {
+      Alert.alert("已锁定", "这个记分局已锁定，不能修改。");
+      return;
+    }
+    try {
+      setSession(updated);
+      await saveSession(updated);
+    } catch (error) {
+      Alert.alert("保存失败", error instanceof Error ? error.message : "请稍后再试");
+    }
   };
 
   if (!session) return <View style={styles.container} />;
 
+  const isLocked = !!session.locked;
   const onlineMembers = session.members.filter((m) => m.online);
 
+  const lockSession = () => {
+    if (isLocked) return;
+    Alert.alert(
+      "锁定记分局",
+      "锁定后将不能再修改或删除这个记分局。确定锁定吗？",
+      [
+        { text: "取消", style: "cancel" },
+        {
+          text: "锁定",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await saveSession({
+                ...session,
+                locked: true,
+                lockedAt: new Date().toISOString(),
+              });
+            } catch (error) {
+              Alert.alert("锁定失败", error instanceof Error ? error.message : "请稍后再试");
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const addMember = async () => {
+    if (isLocked) return;
     const name = memberName.trim();
     if (!name) return;
     const member: Member = { id: genId(), name, online: true };
@@ -65,6 +101,7 @@ export default function SessionDetail() {
   };
 
   const removeMember = async (mid: string) => {
+    if (isLocked) return;
     await persist({
       ...session,
       members: session.members.filter((m) => m.id !== mid),
@@ -72,6 +109,7 @@ export default function SessionDetail() {
   };
 
   const toggleOnline = async (mid: string) => {
+    if (isLocked) return;
     await persist({
       ...session,
       members: session.members.map((m) =>
@@ -81,6 +119,7 @@ export default function SessionDetail() {
   };
 
   const openRoundModal = (round?: { baseScore: number; dealerId: string; winnerIds: string[]; loserIds: string[]; note?: string }) => {
+    if (isLocked) return;
     if (onlineMembers.length < 2) {
       Alert.alert("提示", "至少需要2名在线成员");
       return;
@@ -118,6 +157,7 @@ export default function SessionDetail() {
   };
 
   const openEditRoundModal = (round: typeof session.rounds[number]) => {
+    if (isLocked) return;
     setEditingRoundId(round.id);
     setBaseScore(String(round.baseScore));
     setDealerId(round.dealerId);
@@ -128,6 +168,10 @@ export default function SessionDetail() {
   };
 
   const confirmRound = async () => {
+    if (isLocked) {
+      Alert.alert("已锁定", "这个记分局已锁定，不能修改。");
+      return;
+    }
     const score = parseInt(baseScore, 10);
     if (isNaN(score) || score < 1 || score > 100) {
       Alert.alert("提示", "基础分需在1-100之间");
@@ -178,6 +222,7 @@ export default function SessionDetail() {
   };
 
   const deleteLastRound = async () => {
+    if (isLocked) return;
     if (session.rounds.length === 0) return;
     Alert.alert("撤销轮次", "确定撤销最后一轮？", [
       { text: "取消", style: "cancel" },
@@ -283,6 +328,22 @@ export default function SessionDetail() {
           创建于 {new Date(session.createdAt).toLocaleString("zh-CN")}
         </Text>
 
+        <View style={[styles.lockPanel, isLocked && styles.lockPanelLocked]}>
+          <View style={styles.lockTextBlock}>
+            <Text style={styles.lockTitle}>{isLocked ? "已锁定" : "未锁定"}</Text>
+            <Text style={styles.lockHint}>
+              {isLocked
+                ? "这个记分局只能查看，不能再修改或删除。"
+                : "锁定后将不能再修改或删除这个记分局。"}
+            </Text>
+          </View>
+          {!isLocked && (
+            <TouchableOpacity style={styles.lockBtn} onPress={lockSession}>
+              <Text style={styles.lockBtnText}>锁定</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         <View style={styles.shareRow}>
           <View style={styles.shareCodeBox}>
             <Text style={styles.shareLabel}>局号</Text>
@@ -299,24 +360,27 @@ export default function SessionDetail() {
         {/* Members */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>成员管理</Text>
-          <View style={styles.addRow}>
-            <TextInput
-              style={styles.addInput}
-              placeholder="输入名字"
-              value={memberName}
-              onChangeText={setMemberName}
-              onSubmitEditing={addMember}
-              returnKeyType="done"
-            />
-            <TouchableOpacity style={styles.addBtn} onPress={addMember}>
-              <Text style={styles.addBtnText}>加入</Text>
-            </TouchableOpacity>
-          </View>
+          {!isLocked && (
+            <View style={styles.addRow}>
+              <TextInput
+                style={styles.addInput}
+                placeholder="输入名字"
+                value={memberName}
+                onChangeText={setMemberName}
+                onSubmitEditing={addMember}
+                returnKeyType="done"
+              />
+              <TouchableOpacity style={styles.addBtn} onPress={addMember}>
+                <Text style={styles.addBtnText}>加入</Text>
+              </TouchableOpacity>
+            </View>
+          )}
           {session.members.map((m) => (
             <View key={m.id} style={styles.memberRow}>
               <TouchableOpacity
                 style={styles.memberRowLeft}
                 onPress={() => toggleOnline(m.id)}
+                disabled={isLocked}
               >
                 <View
                   style={[
@@ -331,9 +395,11 @@ export default function SessionDetail() {
                   {m.online ? "在线" : "离线"}
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => removeMember(m.id)}>
-                <Text style={styles.removeBtn}>移除</Text>
-              </TouchableOpacity>
+              {!isLocked && (
+                <TouchableOpacity onPress={() => removeMember(m.id)}>
+                  <Text style={styles.removeBtn}>移除</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ))}
           {session.members.length === 0 && (
@@ -372,7 +438,7 @@ export default function SessionDetail() {
         )}
 
         {/* New Round & Export */}
-        {onlineMembers.length >= 2 && (
+        {!isLocked && onlineMembers.length >= 2 && (
           <View style={styles.roundActions}>
             <TouchableOpacity style={styles.newRoundBtn} onPress={() => openRoundModal()}>
               <Text style={styles.newRoundBtnText}>+ 新建轮次</Text>
@@ -443,12 +509,14 @@ export default function SessionDetail() {
                   })()}
                   {isExpanded && (
                     <View style={styles.roundDetail}>
-                      <TouchableOpacity
-                        style={styles.editRoundBtn}
-                        onPress={() => openEditRoundModal(round)}
-                      >
-                        <Text style={styles.editRoundBtnText}>编辑此轮</Text>
-                      </TouchableOpacity>
+                      {!isLocked && (
+                        <TouchableOpacity
+                          style={styles.editRoundBtn}
+                          onPress={() => openEditRoundModal(round)}
+                        >
+                          <Text style={styles.editRoundBtnText}>编辑此轮</Text>
+                        </TouchableOpacity>
+                      )}
                       {Object.entries(round.scores)
                         .filter(([, v]) => v !== 0)
                         .sort(([, a], [, b]) => b - a)
@@ -727,6 +795,46 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#8E8E93",
     marginBottom: 8,
+  },
+  lockPanel: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
+    gap: 10,
+  },
+  lockPanelLocked: {
+    backgroundColor: "#F9F9F9",
+    borderColor: "#C7C7CC",
+  },
+  lockTextBlock: {
+    flex: 1,
+  },
+  lockTitle: {
+    fontSize: 15,
+    color: "#1C1C1E",
+    fontWeight: "700",
+    marginBottom: 3,
+  },
+  lockHint: {
+    fontSize: 12,
+    color: "#8E8E93",
+  },
+  lockBtn: {
+    backgroundColor: "#1C1C1E",
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  lockBtnText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
   shareRow: {
     flexDirection: "row",

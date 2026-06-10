@@ -40,14 +40,22 @@ export default function Home() {
   };
 
   const confirmDelete = (session: GameSession) => {
+    if (session.locked) {
+      Alert.alert("已锁定", "这个记分局已锁定，不能删除。");
+      return;
+    }
     Alert.alert("删除记分局", `确定删除"${session.name}"吗？`, [
       { text: "取消", style: "cancel" },
       {
         text: "删除",
         style: "destructive",
         onPress: async () => {
-          await deleteSession(session.id);
-          loadSessions();
+          try {
+            await deleteSession(session.id);
+            loadSessions();
+          } catch (error) {
+            Alert.alert("删除失败", error instanceof Error ? error.message : "请稍后再试");
+          }
         },
       },
     ]);
@@ -92,7 +100,10 @@ export default function Home() {
               activeOpacity={0.7}
             >
               <View style={styles.cardHeader}>
-                <Text style={styles.cardName}>{item.name}</Text>
+                <View style={styles.cardTitleRow}>
+                  <Text style={styles.cardName}>{item.name}</Text>
+                  {item.locked && <Text style={styles.lockBadge}>已锁定</Text>}
+                </View>
                 <Text style={styles.cardDate}>{formatDate(item.createdAt)}</Text>
               </View>
               <View style={styles.cardFooter}>
@@ -160,11 +171,28 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 6,
+    gap: 8,
+  },
+  cardTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
   },
   cardName: {
     fontSize: 17,
     fontWeight: "600",
     color: "#1C1C1E",
+    flexShrink: 1,
+  },
+  lockBadge: {
+    fontSize: 12,
+    color: "#8E8E93",
+    backgroundColor: "#F2F2F7",
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    overflow: "hidden",
   },
   cardDate: {
     fontSize: 13,

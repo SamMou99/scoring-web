@@ -24,6 +24,8 @@ export interface GameSession {
   id: string;
   name: string;
   createdAt: string;
+  locked?: boolean;
+  lockedAt?: string;
   members: Member[];
   rounds: Round[];
 }
@@ -46,6 +48,7 @@ function normalizeRound(raw: any): Round {
 function normalizeSession(raw: any): GameSession {
   return {
     ...raw,
+    locked: !!raw?.locked,
     members: toArray(raw?.members) as Member[],
     rounds: toArray(raw?.rounds).map(normalizeRound),
   };
@@ -77,11 +80,19 @@ export async function getSession(id: string): Promise<GameSession | null> {
 
 export async function saveSession(session: GameSession): Promise<void> {
   const sessionRef = ref(db, `sessions/${session.id}`);
+  const snapshot = await get(sessionRef);
+  if (snapshot.exists() && normalizeSession(snapshot.val()).locked) {
+    throw new Error("记分局已锁定，不能修改");
+  }
   await set(sessionRef, session);
 }
 
 export async function deleteSession(id: string): Promise<void> {
   const sessionRef = ref(db, `sessions/${id}`);
+  const snapshot = await get(sessionRef);
+  if (snapshot.exists() && normalizeSession(snapshot.val()).locked) {
+    throw new Error("记分局已锁定，不能删除");
+  }
   await remove(sessionRef);
 }
 
