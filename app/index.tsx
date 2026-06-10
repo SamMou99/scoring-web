@@ -110,6 +110,23 @@ export default function Home() {
                 <Text style={styles.cardInfo}>
                   {item.members.length} 人 · {item.rounds.length} 轮
                 </Text>
+                <TouchableOpacity
+                  style={[styles.deleteBtn, item.locked && styles.deleteBtnDisabled]}
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    confirmDelete(item);
+                  }}
+                  disabled={!!item.locked}
+                >
+                  <Text
+                    style={[
+                      styles.deleteBtnText,
+                      item.locked && styles.deleteBtnTextDisabled,
+                    ]}
+                  >
+                    {item.locked ? "已锁定" : "删除"}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </TouchableOpacity>
           )}
@@ -201,9 +218,30 @@ const styles = StyleSheet.create({
   cardFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
   },
   cardInfo: {
     fontSize: 14,
+    color: "#8E8E93",
+  },
+  deleteBtn: {
+    borderWidth: 1,
+    borderColor: "#FF3B30",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  deleteBtnDisabled: {
+    borderColor: "#C7C7CC",
+    backgroundColor: "#F2F2F7",
+  },
+  deleteBtnText: {
+    color: "#FF3B30",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  deleteBtnTextDisabled: {
     color: "#8E8E93",
   },
   empty: {
