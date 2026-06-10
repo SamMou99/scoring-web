@@ -1,4 +1,4 @@
-import { ref, set, get, remove, onValue, off } from "firebase/database";
+import { ref, set, get, update, onValue, off } from "firebase/database";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { db } from "./firebaseConfig";
@@ -93,7 +93,17 @@ export async function deleteSession(id: string): Promise<void> {
   if (snapshot.exists() && normalizeSession(snapshot.val()).locked) {
     throw new Error("记分局已锁定，不能删除");
   }
-  await remove(sessionRef);
+  await update(ref(db), {
+    [`sessions/${id}`]: null,
+    [`game_sessions/${id}`]: null,
+    [`members/${id}`]: null,
+    [`rounds/${id}`]: null,
+    [`scores/${id}`]: null,
+    [`session_members/${id}`]: null,
+    [`session_rounds/${id}`]: null,
+    [`session_scores/${id}`]: null,
+    [`presence/${id}`]: null,
+  });
 }
 
 export function subscribeToSession(
