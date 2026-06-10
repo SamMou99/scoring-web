@@ -15,6 +15,7 @@ import {
   Member,
   genId,
   saveSession,
+  lockSession as lockGameSession,
   subscribeToSession,
   calculateRoundScores,
   getTotalScores,
@@ -34,6 +35,7 @@ export default function SessionDetail() {
   const [expandedRound, setExpandedRound] = useState<string | null>(null);
   const [editingRoundId, setEditingRoundId] = useState<string | null>(null);
   const [showReport, setShowReport] = useState(false);
+  const [isLocking, setIsLocking] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -66,12 +68,7 @@ export default function SessionDetail() {
   const onlineMembers = session.members.filter((m) => m.online);
 
   const lockSession = async () => {
-    if (isLocked) return;
-    const confirmed =
-      typeof window === "undefined" ||
-      typeof window.confirm !== "function" ||
-      window.confirm("锁定后将不能再修改或删除这个记分局。确定锁定吗？");
-    if (!confirmed) return;
+    if (isLocked || isLocking) return;
 
     const lockedSession = {
       ...session,
@@ -80,11 +77,14 @@ export default function SessionDetail() {
     };
 
     try {
+      setIsLocking(true);
       setSession(lockedSession);
-      await saveSession(lockedSession);
+      await lockGameSession(session.id);
     } catch (error) {
       setSession(session);
       Alert.alert("锁定失败", error instanceof Error ? error.message : "请稍后再试");
+    } finally {
+      setIsLocking(false);
     }
   };
 
@@ -335,8 +335,12 @@ export default function SessionDetail() {
             </Text>
           </View>
           {!isLocked && (
-            <TouchableOpacity style={styles.lockBtn} onPress={lockSession}>
-              <Text style={styles.lockBtnText}>锁定</Text>
+            <TouchableOpacity
+              style={[styles.lockBtn, isLocking && styles.lockBtnDisabled]}
+              onPress={lockSession}
+              disabled={isLocking}
+            >
+              <Text style={styles.lockBtnText}>{isLocking ? "锁定中..." : "锁定"}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -827,6 +831,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
+  },
+  lockBtnDisabled: {
+    backgroundColor: "#8E8E93",
   },
   lockBtnText: {
     color: "#fff",
