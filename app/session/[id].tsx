@@ -16,6 +16,7 @@ import {
   genId,
   saveSession,
   lockSession as lockGameSession,
+  unlockSession as unlockGameSession,
   subscribeToSession,
   calculateRoundScores,
   getTotalScores,
@@ -83,6 +84,27 @@ export default function SessionDetail() {
     } catch (error) {
       setSession(session);
       Alert.alert("锁定失败", error instanceof Error ? error.message : "请稍后再试");
+    } finally {
+      setIsLocking(false);
+    }
+  };
+
+  const unlockSession = async () => {
+    if (!isLocked || isLocking) return;
+
+    const unlockedSession = {
+      ...session,
+      locked: false,
+      lockedAt: undefined,
+    };
+
+    try {
+      setIsLocking(true);
+      setSession(unlockedSession);
+      await unlockGameSession(session.id);
+    } catch (error) {
+      setSession(session);
+      Alert.alert("解锁失败", error instanceof Error ? error.message : "请稍后再试");
     } finally {
       setIsLocking(false);
     }
@@ -334,15 +356,19 @@ export default function SessionDetail() {
                 : "锁定后将不能再修改或删除这个记分局。"}
             </Text>
           </View>
-          {!isLocked && (
-            <TouchableOpacity
-              style={[styles.lockBtn, isLocking && styles.lockBtnDisabled]}
-              onPress={lockSession}
-              disabled={isLocking}
-            >
-              <Text style={styles.lockBtnText}>{isLocking ? "锁定中..." : "锁定"}</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={[
+              styles.lockBtn,
+              isLocked && styles.unlockBtn,
+              isLocking && styles.lockBtnDisabled,
+            ]}
+            onPress={isLocked ? unlockSession : lockSession}
+            disabled={isLocking}
+          >
+            <Text style={styles.lockBtnText}>
+              {isLocking ? (isLocked ? "解锁中..." : "锁定中...") : isLocked ? "解锁" : "锁定"}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.shareRow}>
@@ -831,6 +857,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
+  },
+  unlockBtn: {
+    backgroundColor: "#007AFF",
   },
   lockBtnDisabled: {
     backgroundColor: "#8E8E93",

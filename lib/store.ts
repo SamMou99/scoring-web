@@ -100,6 +100,19 @@ export async function lockSession(id: string): Promise<void> {
   });
 }
 
+export async function unlockSession(id: string): Promise<void> {
+  const sessionRef = ref(db, `sessions/${id}`);
+  const snapshot = await get(sessionRef);
+  if (!snapshot.exists()) {
+    throw new Error("记分局不存在");
+  }
+  if (!normalizeSession(snapshot.val()).locked) return;
+  await update(sessionRef, {
+    locked: false,
+    lockedAt: null,
+  });
+}
+
 export async function deleteSession(id: string): Promise<void> {
   const sessionRef = ref(db, `sessions/${id}`);
   const snapshot = await get(sessionRef);
