@@ -65,30 +65,27 @@ export default function SessionDetail() {
   const isLocked = !!session.locked;
   const onlineMembers = session.members.filter((m) => m.online);
 
-  const lockSession = () => {
+  const lockSession = async () => {
     if (isLocked) return;
-    Alert.alert(
-      "锁定记分局",
-      "锁定后将不能再修改或删除这个记分局。确定锁定吗？",
-      [
-        { text: "取消", style: "cancel" },
-        {
-          text: "锁定",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await saveSession({
-                ...session,
-                locked: true,
-                lockedAt: new Date().toISOString(),
-              });
-            } catch (error) {
-              Alert.alert("锁定失败", error instanceof Error ? error.message : "请稍后再试");
-            }
-          },
-        },
-      ]
-    );
+    const confirmed =
+      typeof window === "undefined" ||
+      typeof window.confirm !== "function" ||
+      window.confirm("锁定后将不能再修改或删除这个记分局。确定锁定吗？");
+    if (!confirmed) return;
+
+    const lockedSession = {
+      ...session,
+      locked: true,
+      lockedAt: new Date().toISOString(),
+    };
+
+    try {
+      setSession(lockedSession);
+      await saveSession(lockedSession);
+    } catch (error) {
+      setSession(session);
+      Alert.alert("锁定失败", error instanceof Error ? error.message : "请稍后再试");
+    }
   };
 
   const addMember = async () => {
