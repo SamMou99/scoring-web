@@ -39,9 +39,24 @@ export default function Home() {
     router.push(`/session/${session.id}`);
   };
 
+  const removeSession = async (session: GameSession) => {
+    try {
+      await deleteSession(session.id);
+      loadSessions();
+    } catch (error) {
+      Alert.alert("删除失败", error instanceof Error ? error.message : "请稍后再试");
+    }
+  };
+
   const confirmDelete = (session: GameSession) => {
     if (session.locked) {
       Alert.alert("已锁定", "这个记分局已锁定，不能删除。");
+      return;
+    }
+    if (typeof window !== "undefined") {
+      if (window.confirm(`确定删除"${session.name}"吗？`)) {
+        removeSession(session);
+      }
       return;
     }
     Alert.alert("删除记分局", `确定删除"${session.name}"吗？`, [
@@ -49,14 +64,7 @@ export default function Home() {
       {
         text: "删除",
         style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteSession(session.id);
-            loadSessions();
-          } catch (error) {
-            Alert.alert("删除失败", error instanceof Error ? error.message : "请稍后再试");
-          }
-        },
+        onPress: () => removeSession(session),
       },
     ]);
   };
@@ -93,29 +101,27 @@ export default function Home() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() => router.push(`/session/${item.id}`)}
-              onLongPress={() => confirmDelete(item)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.cardHeader}>
-                <View style={styles.cardTitleRow}>
-                  <Text style={styles.cardName}>{item.name}</Text>
-                  {item.locked && <Text style={styles.lockBadge}>已锁定</Text>}
+            <View style={styles.card}>
+              <TouchableOpacity
+                onPress={() => router.push(`/session/${item.id}`)}
+                onLongPress={() => confirmDelete(item)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardTitleRow}>
+                    <Text style={styles.cardName}>{item.name}</Text>
+                    {item.locked && <Text style={styles.lockBadge}>已锁定</Text>}
+                  </View>
+                  <Text style={styles.cardDate}>{formatDate(item.createdAt)}</Text>
                 </View>
-                <Text style={styles.cardDate}>{formatDate(item.createdAt)}</Text>
-              </View>
+              </TouchableOpacity>
               <View style={styles.cardFooter}>
                 <Text style={styles.cardInfo}>
                   {item.members.length} 人 · {item.rounds.length} 轮
                 </Text>
                 <TouchableOpacity
                   style={[styles.deleteBtn, item.locked && styles.deleteBtnDisabled]}
-                  onPress={(event) => {
-                    event.stopPropagation();
-                    confirmDelete(item);
-                  }}
+                  onPress={() => confirmDelete(item)}
                   disabled={!!item.locked}
                 >
                   <Text
@@ -128,7 +134,7 @@ export default function Home() {
                   </Text>
                 </TouchableOpacity>
               </View>
-            </TouchableOpacity>
+            </View>
           )}
         />
       )}
