@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "记分板",
+    "slug": "scoring-app",
+    "version": "1.0.0",
+    "scheme": "myapp",
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "name": "记分板",
+      "shortName": "记分板",
+      "themeColor": "#007AFF",
+      "backgroundColor": "#F2F2F7",
+      "display": "standalone",
+      "orientation": "portrait"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "baseUrl": "/scoring-web"
+    }
+  }
+}
